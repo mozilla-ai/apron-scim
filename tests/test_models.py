@@ -74,7 +74,7 @@ USER_JSON = {
         "resourceType": "User",
         "created": "2010-01-23T04:56:22Z",
         "lastModified": "2011-05-13T04:42:34Z",
-        "version": 'W/"3694e05e9dff590"',
+        "version": 'W/"3694e05e9dff590"',  # pragma: allowlist secret
         "location": "https://example.com/v2/Users/2819c223-7f76-453a-919d-413861904646",
     },
 }
@@ -100,7 +100,7 @@ GROUP_JSON = {
         "resourceType": "Group",
         "created": "2010-01-23T04:56:22Z",
         "lastModified": "2011-05-13T04:42:34Z",
-        "version": 'W/"3694e05e9dff592"',
+        "version": 'W/"3694e05e9dff592"',  # pragma: allowlist secret
         "location": "https://example.com/v2/Groups/e9e30dba-f08f-4109-8486-d5c6a331660a",
     },
 }
