@@ -36,6 +36,10 @@ unfixable = [
 
 [lint.per-file-ignores]
 "__init__.py" = ["F401"]
+# The SCIM error subclasses are named for their RFC 7644 section 3.12 scimType
+# keywords (InvalidFilter, NoTarget, ResourceNotFound, …), which carry no "Error"
+# suffix. These names are the ratified public API; N818 does not apply here.
+"src/apron_scim/errors.py" = ["N818"]
 "tests/**" = [
     "D",
     "N999",
