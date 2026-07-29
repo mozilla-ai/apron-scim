@@ -108,8 +108,13 @@ class FilterVisitor(ABC, Generic[T]):
     emit their query language; :meth:`visit` dispatches a node to the matching method.
     Recursion is the subclass's responsibility: a ``visit_and`` implementation
     typically calls ``self.visit(node.left)`` and ``self.visit(node.right)`` and
-    combines the results. Values reach the subclass as data on the nodes, so a
-    filter cannot be coerced into query injection.
+    combines the results.
+
+    Comparison operands reach the subclass as structured data on the nodes, not as
+    query text, so a subclass can bind them as parameters rather than interpolate
+    them. Constructing safe output — parameter-binding values and validating
+    attribute paths — is the subclass's responsibility; this base class cannot
+    enforce it.
     """
 
     def visit(self, node: FilterNode) -> T:

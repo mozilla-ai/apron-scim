@@ -274,9 +274,10 @@ FilterNode = Comparison | Present | And | Or | Not | ValuePath
 | `Not` | `operand: FilterNode` |
 | `ValuePath` | `attribute_path: str`, `predicate: FilterNode` (e.g. `emails[type eq "work"]`) |
 
-All nodes are frozen slotted dataclasses. **Comparison values are carried as parsed
-data, never interpolated into a query string**, so a `FilterVisitor` cannot be coerced
-into query injection.
+All nodes are frozen slotted dataclasses. **Comparison operands are carried as structured
+data, not query text**, so a `FilterVisitor` can bind them as parameters — but
+constructing safe output (parameter-binding values, validating attribute paths) is the
+subclass's responsibility; the base class cannot enforce it.
 
 `FilterVisitor[T]` is an **abstract base class** (not a Protocol) consumers subclass to
 emit their query language:

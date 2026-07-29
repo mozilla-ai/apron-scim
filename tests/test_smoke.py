@@ -10,18 +10,74 @@ from apron_scim import (
     CompareOp,
     Comparison,
     InvalidFilter,
+    InvalidPath,
+    InvalidSyntax,
+    InvalidValue,
     MemoryResourceStore,
     Mutability,
+    NoTarget,
     PreconditionFailed,
     ResourceKind,
     ResourceNotFound,
     ResourceStore,
     ScimError,
     SortOrder,
+    TooMany,
     Uniqueness,
     parse_filter,
 )
 from apron_scim.models import _ScimModel
+
+# The exact public surface ratified in docs/adr/0001-public-api-surface.md. Kept here
+# independently of __init__.__all__ so a change to either must be made deliberately.
+RATIFIED_ALL = [
+    "Address",
+    "And",
+    "CompareOp",
+    "Comparison",
+    "Email",
+    "EnterpriseUser",
+    "FilterNode",
+    "FilterVisitor",
+    "Group",
+    "GroupMember",
+    "InvalidFilter",
+    "InvalidPath",
+    "InvalidSyntax",
+    "InvalidValue",
+    "ListQuery",
+    "ListResponse",
+    "MemoryResourceStore",
+    "Meta",
+    "Mutability",
+    "Name",
+    "NoTarget",
+    "Not",
+    "Or",
+    "Page",
+    "PatchOp",
+    "PatchOperation",
+    "PhoneNumber",
+    "PreconditionFailed",
+    "Present",
+    "Resource",
+    "ResourceKind",
+    "ResourceNotFound",
+    "ResourceStore",
+    "ResourceType",
+    "SchemaDefinition",
+    "ScimError",
+    "ScimErrorResponse",
+    "ScimResponse",
+    "ScimServiceProvider",
+    "ServiceProviderConfig",
+    "SortOrder",
+    "TooMany",
+    "Uniqueness",
+    "User",
+    "ValuePath",
+    "parse_filter",
+]
 
 
 class _Probe(_ScimModel):
@@ -32,7 +88,8 @@ def test_package_imports():
     assert apron_scim.__name__ == "apron_scim"
 
 
-def test_all_is_sorted_and_exported():
+def test_all_matches_ratified_surface_and_is_sorted():
+    assert apron_scim.__all__ == RATIFIED_ALL
     assert apron_scim.__all__ == sorted(apron_scim.__all__)
     for name in apron_scim.__all__:
         assert hasattr(apron_scim, name), name
@@ -45,8 +102,13 @@ def test_scim_error_is_exported():
 def test_error_status_and_scim_type_mapping():
     assert (ScimError.http_status, ScimError.scim_type) == (500, None)
     assert (InvalidFilter.http_status, InvalidFilter.scim_type) == (400, "invalidFilter")
+    assert (InvalidValue.http_status, InvalidValue.scim_type) == (400, "invalidValue")
+    assert (InvalidSyntax.http_status, InvalidSyntax.scim_type) == (400, "invalidSyntax")
+    assert (InvalidPath.http_status, InvalidPath.scim_type) == (400, "invalidPath")
+    assert (NoTarget.http_status, NoTarget.scim_type) == (400, "noTarget")
     assert (Mutability.http_status, Mutability.scim_type) == (400, "mutability")
     assert (Uniqueness.http_status, Uniqueness.scim_type) == (409, "uniqueness")
+    assert (TooMany.http_status, TooMany.scim_type) == (400, "tooMany")
     assert (ResourceNotFound.http_status, ResourceNotFound.scim_type) == (404, None)
     assert (PreconditionFailed.http_status, PreconditionFailed.scim_type) == (412, None)
 
