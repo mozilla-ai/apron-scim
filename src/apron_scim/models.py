@@ -14,10 +14,12 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Self, TypeAlias
+from typing import Any, Literal, Self, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
+
+from apron_scim.errors import ERROR_SCHEMA
 
 USER_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:User"
 """Core schema URN for a User resource (RFC 7643 section 4.1)."""
@@ -27,6 +29,12 @@ GROUP_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:Group"
 
 ENTERPRISE_USER_SCHEMA = "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"
 """Schema URN for the Enterprise User extension (RFC 7643 section 4.3)."""
+
+LIST_RESPONSE_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:ListResponse"
+"""Schema URN for a SCIM list/query response envelope (RFC 7644 section 3.4.2)."""
+
+PATCH_OP_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:PatchOp"
+"""Schema URN for a SCIM PATCH request body (RFC 7644 section 3.5.2)."""
 
 
 class ResourceKind(StrEnum):
@@ -207,27 +215,54 @@ Resource: TypeAlias = User | Group
 
 
 class PatchOperation(_ScimModel):
-    """A single ``add``/``remove``/``replace`` operation within a PatchOp (RFC 7644 section 3.5.2)."""
+    """A single add, remove, or replace operation within a PatchOp (RFC 7644 section 3.5.2).
+
+    ``op`` names the modification.
+    ``path`` selects the target attribute, absent for a whole-resource add or replace.
+    ``value`` carries the new content, absent for a remove.
+    """
+
+    op: Literal["add", "remove", "replace"]
+    path: str | None = None
+    value: Any | None = None
 
 
 class PatchOp(_ScimModel):
-    """A PATCH request body: an ordered list of operations (RFC 7644 section 3.5.2).
+    """A PATCH request body carrying an ordered list of operations (RFC 7644 section 3.5.2).
 
     Schema ``urn:ietf:params:scim:api:messages:2.0:PatchOp``.
     """
 
+    schemas: list[str] = Field(default_factory=lambda: [PATCH_OP_SCHEMA])
+    # ``Operations`` is capitalized on the wire and the camelCase generator would emit ``operations``, so it is aliased.
+    operations: list[PatchOperation] = Field(alias="Operations")
+
 
 class ListResponse(_ScimModel):
-    """A query result envelope (RFC 7644 section 3.4.2).
+    """A query result envelope wrapping a page of resources (RFC 7644 section 3.4.2).
 
     Schema ``urn:ietf:params:scim:api:messages:2.0:ListResponse``.
+    ``Resources`` holds the page's members as they appear on the wire, which may be full or partial representations,
+    so it is left untyped rather than fixed to one resource shape.
     """
+
+    schemas: list[str] = Field(default_factory=lambda: [LIST_RESPONSE_SCHEMA])
+    total_results: int
+    start_index: int
+    items_per_page: int
+    # ``Resources`` is capitalized on the wire and the camelCase generator would emit ``resources``, so it is aliased.
+    resources: list[Any] = Field(default_factory=list, alias="Resources")
 
 
 class ScimErrorResponse(_ScimModel):
     """A SCIM error response body (RFC 7644 section 3.12).
 
-    Schema ``urn:ietf:params:scim:api:messages:2.0:Error``. The wire body is emitted
-    as a plain ``dict`` by :meth:`~apron_scim.errors.ScimError.to_response`; this
-    model documents that shape for consumers that parse error bodies.
+    Schema ``urn:ietf:params:scim:api:messages:2.0:Error``.
+    It mirrors the error body emitted for a failed SCIM operation,
+    giving consumers a typed model to parse those bodies into.
     """
+
+    schemas: list[str] = Field(default_factory=lambda: [ERROR_SCHEMA])
+    status: str
+    scim_type: str | None = None
+    detail: str | None = None
