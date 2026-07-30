@@ -128,7 +128,10 @@ def test_patch_op_operations_are_required():
 
 
 def test_patch_operation_omits_absent_path_and_value():
+    # A remove carries a path but no value; a root-level replace carries a value but no path.
+    # Together they show each field is omitted from the wire form when unset, rather than nulled.
     assert wire(PatchOperation(op="remove", path="active")) == {"op": "remove", "path": "active"}
+    assert wire(PatchOperation(op="replace", value="Babs Jensen")) == {"op": "replace", "value": "Babs Jensen"}
 
 
 def test_patch_operation_carries_arbitrary_value():
