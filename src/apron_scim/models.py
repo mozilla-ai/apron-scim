@@ -14,9 +14,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import TypeAlias
+from typing import Self, TypeAlias
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
 
 USER_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:User"
@@ -24,6 +24,9 @@ USER_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:User"
 
 GROUP_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:Group"
 """Core schema URN for a Group resource (RFC 7643 section 4.2)."""
+
+ENTERPRISE_USER_SCHEMA = "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"
+"""Schema URN for the Enterprise User extension (RFC 7643 section 4.3)."""
 
 
 class ResourceKind(StrEnum):
@@ -125,6 +128,34 @@ class Meta(_ScimModel):
     version: str | None = None
 
 
+class Manager(_ScimModel):
+    """A User's manager within the Enterprise User extension (RFC 7643 section 4.3).
+
+    A complex sub-attribute pointing at another User: ``value`` is the manager's id,
+    ``$ref`` a URI for that User, and ``displayName`` the manager's display name.
+    """
+
+    value: str | None = None
+    # ``$ref`` cannot be produced by the camelCase generator, so it is aliased explicitly.
+    ref: str | None = Field(default=None, alias="$ref")
+    display_name: str | None = None
+
+
+class EnterpriseUser(_ScimModel):
+    """Enterprise User extension attributes (RFC 7643 section 4.3).
+
+    Schema ``urn:ietf:params:scim:schemas:extension:enterprise:2.0:User``. Carried on a
+    User under that URN as an attribute key; the URN is listed in the User's ``schemas``.
+    """
+
+    employee_number: str | None = None
+    cost_center: str | None = None
+    organization: str | None = None
+    division: str | None = None
+    department: str | None = None
+    manager: Manager | None = None
+
+
 class User(_ScimModel):
     """SCIM User resource (RFC 7643 section 4.1), schema ``urn:ietf:params:scim:schemas:core:2.0:User``.
 
@@ -143,7 +174,21 @@ class User(_ScimModel):
     phone_numbers: list[PhoneNumber] | None = None
     addresses: list[Address] | None = None
     active: bool | None = None
+    enterprise_user: EnterpriseUser | None = Field(default=None, alias=ENTERPRISE_USER_SCHEMA)
     meta: Meta | None = None
+
+    @model_validator(mode="after")
+    def _list_enterprise_schema(self) -> Self:
+        """List the enterprise extension URN in ``schemas`` whenever the extension is carried.
+
+        RFC 7643 requires ``schemas`` to enumerate every schema a resource uses, so the
+        URN must accompany the extension however the User was constructed.
+        """
+        if self.enterprise_user is not None and ENTERPRISE_USER_SCHEMA not in self.schemas:
+            # Assign through ``object`` because the model is frozen; a validator that
+            # returns a copy instead is silently ignored during ``__init__`` construction.
+            object.__setattr__(self, "schemas", [*self.schemas, ENTERPRISE_USER_SCHEMA])
+        return self
 
 
 class Group(_ScimModel):
@@ -155,14 +200,6 @@ class Group(_ScimModel):
     display_name: str
     members: list[GroupMember] | None = None
     meta: Meta | None = None
-
-
-class EnterpriseUser(_ScimModel):
-    """Enterprise User extension (RFC 7643 section 4.3).
-
-    Schema ``urn:ietf:params:scim:schemas:extension:enterprise:2.0:User``, carried
-    on a User under its extension URN key.
-    """
 
 
 Resource: TypeAlias = User | Group
