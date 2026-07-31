@@ -42,8 +42,8 @@ class ResourceKind(StrEnum):
 
     Distinct from :class:`~apron_scim.schema.ResourceType`, the RFC 7643 discovery
     model published at ``/ResourceTypes``. Its values double as the ``meta.resourceType``
-    string for each kind. See docs/adr/0001-public-api-surface.md §5 for its role
-    keying store and service operations.
+    string for each kind. See docs/adr/0001-public-api-surface.md §5 for how operations
+    dispatch on it.
     """
 
     USER = "User"
@@ -57,8 +57,8 @@ class _ScimModel(BaseModel):
     ``camelCase`` via an alias generator; construction accepts either form.
     Models are frozen, so PATCH and PUT produce a new instance (functional update)
     rather than mutating in place. Unknown attributes are ignored on input rather
-    than rejected; strict schema and mutability validation is a separate concern
-    (docs/adr/0001-public-api-surface.md §5).
+    than rejected; strict schema and SCIM attribute-mutability validation is a
+    separate concern (docs/adr/0001-public-api-surface.md §5).
     """
 
     model_config = ConfigDict(
@@ -257,8 +257,8 @@ class ScimErrorResponse(_ScimModel):
     """A SCIM error response body (RFC 7644 section 3.12).
 
     Schema ``urn:ietf:params:scim:api:messages:2.0:Error``. Types the SCIM error
-    wire shape: a ``status`` string, an optional ``scimType`` keyword, and a
-    human-readable ``detail``.
+    wire shape: a ``status`` string, an optional ``scimType`` keyword, and an
+    optional human-readable ``detail``.
     """
 
     schemas: list[str] = Field(default_factory=lambda: [ERROR_SCHEMA])
