@@ -21,6 +21,7 @@ from apron_scim import ResourceType, SchemaDefinition, ServiceProviderConfig
 from apron_scim.models import _ScimModel
 from apron_scim.schema import (
     RESOURCE_TYPE_SCHEMA,
+    SCHEMA_DEFINITION_SCHEMA,
     SERVICE_PROVIDER_CONFIG_SCHEMA,
     AttributeDefinition,
     AuthenticationScheme,
@@ -76,6 +77,7 @@ RESOURCE_TYPE_JSON = {
 # complex attribute with sub-attributes, and a multi-valued reference. Reduced from the
 # RFC 7643 section 8.7 User schema — the full attribute set is the discovery builder's job.
 SCHEMA_DEFINITION_JSON = {
+    "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Schema"],
     "id": "urn:ietf:params:scim:schemas:core:2.0:User",
     "name": "User",
     "description": "User Account",
@@ -150,8 +152,24 @@ def test_service_provider_config_defaults_schemas_to_config_urn():
         change_password=Supported(supported=False),
         sort=Supported(supported=False),
         etag=Supported(supported=False),
+        authentication_schemes=[],
     )
     assert config.schemas == [SERVICE_PROVIDER_CONFIG_SCHEMA]
+
+
+def test_service_provider_config_requires_authentication_schemes():
+    with pytest.raises(ValidationError):
+        ServiceProviderConfig.model_validate(
+            {
+                "schemas": [SERVICE_PROVIDER_CONFIG_SCHEMA],
+                "patch": {"supported": True},
+                "bulk": {"supported": True, "maxOperations": 1, "maxPayloadSize": 1},
+                "filter": {"supported": True, "maxResults": 1},
+                "changePassword": {"supported": True},
+                "sort": {"supported": True},
+                "etag": {"supported": True},
+            }
+        )
 
 
 def test_service_provider_config_parses_nested_capabilities_into_models():
@@ -202,11 +220,45 @@ def test_resource_type_schema_extensions_uses_camel_case_wire_key():
     assert "schema_extensions" not in serialized
 
 
+def test_resource_type_id_is_optional():
+    # RFC 7643 section 6 makes ``id`` optional ("often the same value as the name").
+    resource_type = ResourceType(name="Group", endpoint="/Groups", schema="urn:ietf:params:scim:schemas:core:2.0:Group")
+    assert resource_type.id is None
+
+
+def test_schema_extension_requires_the_required_member():
+    # RFC 7643 section 6 makes the ``required`` sub-attribute of a schema extension mandatory.
+    with pytest.raises(ValidationError):
+        SchemaExtension.model_validate({"schema": "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"})
+
+
 # --- SchemaDefinition + AttributeDefinition (RFC 7643 section 7) -----------------------
 
 
 def test_schema_definition_round_trips_rfc_example():
     assert wire(SchemaDefinition.model_validate(SCHEMA_DEFINITION_JSON)) == SCHEMA_DEFINITION_JSON
+
+
+def test_schema_definition_defaults_schemas_to_schema_urn():
+    assert SchemaDefinition(id="urn:ietf:params:scim:schemas:core:2.0:User", name="User").schemas == [
+        SCHEMA_DEFINITION_SCHEMA
+    ]
+
+
+def test_attribute_definition_rejects_sub_attributes_on_a_non_complex_attribute():
+    # RFC 7643 section 2.3.8: only a complex attribute may carry sub-attributes.
+    with pytest.raises(ValidationError):
+        AttributeDefinition(name="userName", type="string", sub_attributes=[AttributeDefinition(name="part")])
+
+
+def test_attribute_definition_rejects_a_complex_sub_attribute():
+    # RFC 7643 section 2.3.8: a sub-attribute may not itself be complex.
+    with pytest.raises(ValidationError):
+        AttributeDefinition(
+            name="name",
+            type="complex",
+            sub_attributes=[AttributeDefinition(name="nested", type="complex")],
+        )
 
 
 def test_schema_definition_parses_attributes_recursively():

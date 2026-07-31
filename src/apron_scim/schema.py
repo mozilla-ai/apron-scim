@@ -11,9 +11,9 @@ contract: frozen, SCIM camelCase aliases, and construction by either attribute n
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from apron_scim.models import Meta, _ScimModel
 
@@ -22,6 +22,9 @@ SERVICE_PROVIDER_CONFIG_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:ServiceP
 
 RESOURCE_TYPE_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:ResourceType"
 """Core schema URN for a resource-type discovery entry (RFC 7643 section 6)."""
+
+SCHEMA_DEFINITION_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:Schema"
+"""Core schema URN for a schema-definition discovery entry (RFC 7643 section 7)."""
 
 
 class AttributeDefinition(_ScimModel):
@@ -45,6 +48,21 @@ class AttributeDefinition(_ScimModel):
     returned: Literal["always", "never", "default", "request"] = "default"
     uniqueness: Literal["none", "server", "global"] = "none"
     reference_types: list[str] | None = None
+
+    @model_validator(mode="after")
+    def _reject_illegal_sub_attribute_nesting(self) -> Self:
+        """Reject sub-attribute structures RFC 7643 section 2.3.8 forbids.
+
+        Only a complex attribute may carry sub-attributes, and a sub-attribute may not itself
+        be complex, so a schema's attribute tree is at most two levels deep.
+        """
+        if self.sub_attributes is None:
+            return self
+        if self.type != "complex":
+            raise ValueError("only a complex attribute may define sub-attributes")
+        if any(sub.type == "complex" for sub in self.sub_attributes):
+            raise ValueError("a sub-attribute may not itself be complex")
+        return self
 
 
 class Supported(_ScimModel):
@@ -100,7 +118,7 @@ class SchemaExtension(_ScimModel):
     # ``schema`` is the RFC 7643 wire key; a field named ``schema`` shadows pydantic's
     # deprecated ``BaseModel.schema``, so it is named distinctly and aliased back to it.
     schema_urn: str = Field(alias="schema")
-    required: bool = False
+    required: bool
 
 
 class ServiceProviderConfig(_ScimModel):
@@ -119,7 +137,7 @@ class ServiceProviderConfig(_ScimModel):
     change_password: Supported
     sort: Supported
     etag: Supported
-    authentication_schemes: list[AuthenticationScheme] = Field(default_factory=list)
+    authentication_schemes: list[AuthenticationScheme]
     meta: Meta | None = None
 
 
@@ -149,6 +167,7 @@ class SchemaDefinition(_ScimModel):
     attribute definitions that compose it.
     """
 
+    schemas: list[str] = Field(default_factory=lambda: [SCHEMA_DEFINITION_SCHEMA])
     id: str
     name: str
     description: str | None = None
