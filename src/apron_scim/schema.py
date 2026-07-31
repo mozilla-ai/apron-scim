@@ -169,7 +169,7 @@ class SchemaDefinition(_ScimModel):
 
     schemas: list[str] = Field(default_factory=lambda: [SCHEMA_DEFINITION_SCHEMA])
     id: str
-    name: str
+    name: str | None = None
     description: str | None = None
-    attributes: list[AttributeDefinition] = Field(default_factory=list)
+    attributes: list[AttributeDefinition]
     meta: Meta | None = None

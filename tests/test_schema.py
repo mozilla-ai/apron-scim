@@ -240,9 +240,20 @@ def test_schema_definition_round_trips_rfc_example():
 
 
 def test_schema_definition_defaults_schemas_to_schema_urn():
-    assert SchemaDefinition(id="urn:ietf:params:scim:schemas:core:2.0:User", name="User").schemas == [
-        SCHEMA_DEFINITION_SCHEMA
-    ]
+    schema = SchemaDefinition(id="urn:ietf:params:scim:schemas:core:2.0:User", name="User", attributes=[])
+    assert schema.schemas == [SCHEMA_DEFINITION_SCHEMA]
+
+
+def test_schema_definition_name_is_optional():
+    # RFC 7643 section 7 designates the Schema resource's ``name`` as OPTIONAL.
+    schema = SchemaDefinition(id="urn:ietf:params:scim:schemas:core:2.0:User", attributes=[])
+    assert schema.name is None
+
+
+def test_schema_definition_requires_attributes():
+    # RFC 7643 section 7 makes ``attributes`` a required member of a Schema resource.
+    with pytest.raises(ValidationError):
+        SchemaDefinition.model_validate({"id": "urn:ietf:params:scim:schemas:core:2.0:User"})
 
 
 def test_attribute_definition_rejects_sub_attributes_on_a_non_complex_attribute():
