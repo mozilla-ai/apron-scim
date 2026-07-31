@@ -5,9 +5,9 @@ sub-attributes, Meta, the protocol messages (ListResponse, PatchOp, PatchOperati
 ScimErrorResponse), and the ResourceKind discriminator.
 
 The classes here are the ratified public shapes; their fields are specified in
-docs/adr/0001-public-api-surface.md and populated by the ``feat(models)`` issues
-of Epic 1. Every model shares :class:`_ScimModel`'s serialization contract:
-frozen, SCIM camelCase aliases, and construction by either attribute name or alias.
+docs/adr/0001-public-api-surface.md. Every model shares :class:`_ScimModel`'s
+serialization contract: frozen, SCIM camelCase aliases, and construction by either
+attribute name or alias.
 """
 
 from __future__ import annotations
@@ -38,12 +38,12 @@ PATCH_OP_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:PatchOp"
 
 
 class ResourceKind(StrEnum):
-    """Closed set of resource kinds that key store and service operations.
+    """Closed set of the resource kinds this library models.
 
     Distinct from :class:`~apron_scim.schema.ResourceType`, the RFC 7643 discovery
-    model published at ``/ResourceTypes``. This enum is the internal discriminator
-    the facade and store dispatch on; its values double as the ``meta.resourceType``
-    string for each kind.
+    model published at ``/ResourceTypes``. Its values double as the ``meta.resourceType``
+    string for each kind. See docs/adr/0001-public-api-surface.md §5 for its role
+    keying store and service operations.
     """
 
     USER = "User"
@@ -56,9 +56,9 @@ class _ScimModel(BaseModel):
     Fields are declared in ``snake_case`` and exposed on the wire in SCIM
     ``camelCase`` via an alias generator; construction accepts either form.
     Models are frozen, so PATCH and PUT produce a new instance (functional update)
-    rather than mutating in place. Unknown attributes are ignored on input; the
-    service applies schema and mutability validation explicitly rather than relying
-    on the model to reject them.
+    rather than mutating in place. Unknown attributes are ignored on input rather
+    than rejected; strict schema and mutability validation is a separate concern
+    (docs/adr/0001-public-api-surface.md §5).
     """
 
     model_config = ConfigDict(
@@ -125,8 +125,8 @@ class Meta(_ScimModel):
     """Common resource metadata (RFC 7643 section 3.1).
 
     Carries ``resourceType``, ``created``, ``lastModified``, ``location``, and
-    ``version``. Identity-bearing fields are owned by the store and the service —
-    see the ownership contract in docs/adr/0001-public-api-surface.md.
+    ``version``. See docs/adr/0001-public-api-surface.md §4 for how these fields
+    are assigned.
     """
 
     resource_type: str | None = None
@@ -152,8 +152,7 @@ class Manager(_ScimModel):
 class EnterpriseUser(_ScimModel):
     """Enterprise User extension attributes (RFC 7643 section 4.3).
 
-    Schema ``urn:ietf:params:scim:schemas:extension:enterprise:2.0:User``. Carried on a
-    User under that URN as an attribute key; the URN is listed in the User's ``schemas``.
+    Schema ``urn:ietf:params:scim:schemas:extension:enterprise:2.0:User``.
     """
 
     employee_number: str | None = None
@@ -211,7 +210,7 @@ class Group(_ScimModel):
 
 
 Resource: TypeAlias = User | Group
-"""The set of top-level resources the store and service operate on."""
+"""The top-level SCIM resources: a ``User`` or a ``Group``."""
 
 
 class PatchOperation(_ScimModel):
@@ -257,9 +256,9 @@ class ListResponse(_ScimModel):
 class ScimErrorResponse(_ScimModel):
     """A SCIM error response body (RFC 7644 section 3.12).
 
-    Schema ``urn:ietf:params:scim:api:messages:2.0:Error``.
-    It mirrors the error body emitted for a failed SCIM operation,
-    giving consumers a typed model to parse those bodies into.
+    Schema ``urn:ietf:params:scim:api:messages:2.0:Error``. Types the SCIM error
+    wire shape: a ``status`` string, an optional ``scimType`` keyword, and a
+    human-readable ``detail``.
     """
 
     schemas: list[str] = Field(default_factory=lambda: [ERROR_SCHEMA])
